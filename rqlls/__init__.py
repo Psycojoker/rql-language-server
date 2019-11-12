@@ -6,7 +6,7 @@ import argparse
 from multiprocessing import freeze_support
 from .langserver import LangServer
 from .jsonrpc import JSONRPC2Connection, ReadWriter, path_from_uri
-from .parse_fortran import fortran_file, process_file
+from .parse_rql import rql_file, process_file
 __version__ = '1.10.3'
 
 
@@ -16,6 +16,9 @@ def error_exit(error_str):
 
 
 def main():
+    import os
+    os.system("date > /tmp/rqlls")
+    os.system("echo 'it me' >> /tmp/rqlls")
     #
     freeze_support()
     parser = argparse.ArgumentParser()
@@ -198,7 +201,7 @@ def main():
         pp_defs = {}
         include_dirs = []
         if args.debug_rootpath:
-            config_path = os.path.join(args.debug_rootpath, ".fortls")
+            config_path = os.path.join(args.debug_rootpath, ".rqlls")
             config_exists = os.path.isfile(config_path)
             if config_exists:
                 try:
@@ -210,7 +213,7 @@ def main():
                         if isinstance(pp_defs, list):
                             pp_defs = {key: "" for key in pp_defs}
                 except:
-                    print("Error while parsing '.fortls' settings file")
+                    print("Error while parsing '.rqlls' settings file")
                 # Make relative include paths absolute
                 for (i, include_dir) in enumerate(include_dirs):
                     if not os.path.isabs(include_dir):
@@ -218,7 +221,7 @@ def main():
         #
         print('\nTesting parser')
         print('  File = "{0}"'.format(args.debug_filepath))
-        file_obj = fortran_file(args.debug_filepath, pp_suffixes)
+        file_obj = rql_file(args.debug_filepath, pp_suffixes)
         err_str = file_obj.load_from_disk()
         if err_str is not None:
             error_exit("Reading file failed: {0}".format(err_str))

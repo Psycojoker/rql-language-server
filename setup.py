@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 README = open('README.rst', 'r').read()
 
 setup(
-    name='fortran-language-server',
+    name='rql-language-server',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
@@ -16,8 +16,8 @@ setup(
     long_description=README,
 
     # The project's main homepage.
-    url='https://github.com/hansec/fortran-language-server',
-    download_url = 'https://github.com/hansec/fortran-language-server/archive/v1.10.3.tar.gz',
+    url='https://github.com/hansec/rql-language-server',
+    download_url = 'https://github.com/hansec/rql-language-server/archive/v1.10.3.tar.gz',
 
     author='Chris Hansen',
     author_email = 'hansec@uw.edu',
@@ -25,7 +25,7 @@ setup(
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=['contrib', 'docs', 'test']),
-    package_data={'fortls': ['*.json']},
+    package_data={'rqlls': ['*.json']},
 
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed. For an analysis of "install_requires" vs pip's
@@ -41,7 +41,7 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'fortls = fortls.__init__:main',
+            'rqlls = rqlls.__init__:main',
         ]
     },
 )

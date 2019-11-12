@@ -1,5 +1,5 @@
 MODULE test_free
-USE, INTRINSIC :: iso_fortran_env, ONLY: error_unit
+USE, INTRINSIC :: iso_rql_env, ONLY: error_unit
 IMPLICIT NONE
 ! ą
 TYPE :: scale_type

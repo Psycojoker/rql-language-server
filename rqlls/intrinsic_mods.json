@@ -397,9 +397,9 @@
       }
     ]
   },
-  "iso_fortran_env": {
+  "iso_rql_env": {
     "type": 0,
-    "name": "iso_fortran_env",
+    "name": "iso_rql_env",
     "children": [
       {
         "name": "atomic_int_kind",

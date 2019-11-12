@@ -1,22 +1,22 @@
 Fortran Language Server
 =======================
 
-.. image:: https://travis-ci.org/hansec/fortran-language-server.svg?branch=master
-     :target: https://travis-ci.org/hansec/fortran-language-server
+.. image:: https://travis-ci.org/hansec/rql-language-server.svg?branch=master
+     :target: https://travis-ci.org/hansec/rql-language-server
 
-.. image:: https://ci.appveyor.com/api/projects/status/github/hansec/fortran-language-server?branch=master&svg=true
-     :target: https://ci.appveyor.com/project/hansec/fortran-language-server
+.. image:: https://ci.appveyor.com/api/projects/status/github/hansec/rql-language-server?branch=master&svg=true
+     :target: https://ci.appveyor.com/project/hansec/rql-language-server
 
-.. image:: https://img.shields.io/github/license/hansec/fortran-language-server.svg
-     :target: https://github.com/hansec/fortran-language-server/blob/master/LICENSE
+.. image:: https://img.shields.io/github/license/hansec/rql-language-server.svg
+     :target: https://github.com/hansec/rql-language-server/blob/master/LICENSE
 
 A Fortran implementation of the `Language Server Protocol <https://github.com/Microsoft/language-server-protocol>`_ using Python (2.7+ or 3.0+).
 
 Editor extensions using this language server to provide autocomplete and other IDE-like functionality are
-available for `Atom <https://atom.io/packages/ide-fortran>`_,
-`Visual Studio Code <https://marketplace.visualstudio.com/items?itemName=hansec.fortran-ls>`_,
-`Visual Studio <https://github.com/michaelkonecny/vs-fortran-ls-client>`_,
-`(Neo)vim <https://github.com/hansec/fortran-language-server/wiki/Using-forts-with-vim>`_,
+available for `Atom <https://atom.io/packages/ide-rql>`_,
+`Visual Studio Code <https://marketplace.visualstudio.com/items?itemName=hansec.rql-ls>`_,
+`Visual Studio <https://github.com/michaelkonecny/vs-rql-ls-client>`_,
+`(Neo)vim <https://github.com/hansec/rql-language-server/wiki/Using-forts-with-vim>`_,
 and `Emacs <https://github.com/emacs-lsp/lsp-mode>`_.
 
 Language Server Features
@@ -58,7 +58,7 @@ Notes/Limitations:
 Installation
 ------------
 
-``pip install fortran-language-server``
+``pip install rql-language-server``
 
 Language server settings
 ------------------------
@@ -80,12 +80,12 @@ The following global settings can be used when launching the language server.
 * ``--enable_code_actions`` Enable experimental code actions (default: false)
 * ``--max_line_length`` Maximum line length (default: disabled)
 * ``--max_comment_line_length`` Maximum comment line length (default: disabled)
-* ``--debug_log`` Write debug information to ``root_dir/fortls_debug.log`` (requires a specified ``root_dir`` during initialization)
+* ``--debug_log`` Write debug information to ``root_dir/rqlls_debug.log`` (requires a specified ``root_dir`` during initialization)
 
 Debug settings:
 ^^^^^^^^^^^^^^^
 
-The following settings can be used to perform `standalone debug tests <https://github.com/hansec/fortran-language-server/wiki>`_ on the language server.
+The following settings can be used to perform `standalone debug tests <https://github.com/hansec/rql-language-server/wiki>`_ on the language server.
 
 * ``--debug_filepath=DEBUG_FILEPATH`` File path for language server tests
 * ``--debug_rootpath=DEBUG_ROOTPATH`` Root path for language server tests
@@ -108,11 +108,11 @@ The following settings can be used to perform `standalone debug tests <https://g
 Configuration
 -------------
 
-Project specific settings can be specified by placing a JSON file named ``.fortls`` (example below)
+Project specific settings can be specified by placing a JSON file named ``.rqlls`` (example below)
 in the ``root_dir`` directory.
 
 * ``lowercase_intrinsics`` Use lowercase for intrinsics and keywords in autocomplete requests (default: false)
-* ``debug_log`` Write debug information to ``root_dir/fortls_debug.log`` (default: false)
+* ``debug_log`` Write debug information to ``root_dir/rqlls_debug.log`` (default: false)
 
 Setup source file search paths:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -122,16 +122,16 @@ By default all files with the suffix ``F,F77,F90,F95,F03,F08,FOR,FPP`` (case-ins
 the project.
 
 Directories and files can be excluded from the project by specifying their paths (relative to ``root_dir``) in
-the ``excl_paths`` variable in the ``.fortls`` file. Excluded directories also exclude all sub-directories. Source
+the ``excl_paths`` variable in the ``.rqlls`` file. Excluded directories also exclude all sub-directories. Source
 files with a common suffix may also be excluded using the ``excl_suffixes`` variable.
 
 Source file directories can also be specified manually by specifying their paths (relative to ``root_dir``) in
-the ``source_dirs`` variable in the ``.fortls`` file. When ``source_dirs`` is specified directories are not added
+the ``source_dirs`` variable in the ``.rqlls`` file. When ``source_dirs`` is specified directories are not added
 recursively, so any nested sub directories must be explicitly listed. However, ``root_dir`` does not need to
 be specified manually as it is always included.
 
 External source files (ex. libraries) can also be included in language server results by specifying their paths
-in the ``ext_source_dirs`` variable in the ``.fortls`` file. These files will be parsed during initialization,
+in the ``ext_source_dirs`` variable in the ``.rqlls`` file. These files will be parsed during initialization,
 but will not be updated with any changes made until the language server is restarted. As with ``source_dirs``,
 specified directories are not added recursively, so any nested sub directories must be explicitly listed.
 
@@ -149,19 +149,19 @@ evaluated by the server or if the region is the *default* path (ie. a bare ``#el
 Fortran objects defined in these files will not be processed.
 
 File suffixes for preprocessing can be controlled with the variable ``pp_suffixes`` in a workspace's
-``.fortls`` file. When this variable is used *only* those files with the specified suffixes will be
+``.rqlls`` file. When this variable is used *only* those files with the specified suffixes will be
 preprocessed. If an empty array is specified then *no* preprocessing will be performed on any files.
 By default, or if the variable is ommited or ``null``, only files with upper case suffixes are preprocessed.
 
 Preprocessor definitions can be set for each project, to improve support for Fortran files using conditional
-compilation, using the ``pp_defs`` variable in the ``.fortls`` file. Preprocessing is performed *only* for files
+compilation, using the ``pp_defs`` variable in the ``.rqlls`` file. Preprocessing is performed *only* for files
 where the file extension is all caps (ie. ".F90", ".F", etc.). Currently, support for preprocessing is limited
-to variables declared in the project's ``.fortls`` file or in the source file of interest as ``#include`` files
+to variables declared in the project's ``.rqlls`` file or in the source file of interest as ``#include`` files
 and inheritance through ``USE`` statements are yet not supported. Variable substitution is also performed
 within files, but is currently limited to non-recursive cases. For example, ``#define PP_VAR1 PP_VAR2`` will
 cause ``PP_VAR1`` to be replaced with the text ``PP_VAR2`` throughout the file, not that value of ``PP_VAR2``.
 
-Include directories can be specified using the variable ``include_dirs`` in a workspace's ``.fortls`` file.
+Include directories can be specified using the variable ``include_dirs`` in a workspace's ``.rqlls`` file.
 These directories are *only* used to search for preprocessor ``#include``'d files. The directory containing
 the file where an ``#include`` statement is encountered is always searched. File search is performed starting
 with the containing directory followed by the specified ``include_dirs`` specified paths, in order (left to right).
@@ -176,52 +176,52 @@ with the containing directory followed by the specified ``include_dirs`` specifi
       "pp_suffixes": [".f03", ".F90"],
       "pp_defs": {"HAVE_PACKAGE": ""},
       "include_dirs": ["rel_include/dir_path", "/abs/include/dir/path"],
-      "ext_source_dirs": ["/path/to/fortran/library"],
+      "ext_source_dirs": ["/path/to/rql/library"],
       "lowercase_intrinsics": false,
       "debug_log": false
     }
 
 Bug reports
 -----------
-When `filing bugs <https://github.com/hansec/fortran-language-server/issues/new>`_ please provide example code to reproduce the observed issue.
+When `filing bugs <https://github.com/hansec/rql-language-server/issues/new>`_ please provide example code to reproduce the observed issue.
 
 License
 -------
 
-This project is made available under the `MIT License <https://github.com/hansec/fortran-language-server/blob/master/LICENSE>`_.
+This project is made available under the `MIT License <https://github.com/hansec/rql-language-server/blob/master/LICENSE>`_.
 
 Support
 -------
 
-If you *really* like `this package <https://github.com/hansec/fortran-language-server>`_ you can `buy me a coffee <https://paypal.me/hansec>`_ to say thanks.
+If you *really* like `this package <https://github.com/hansec/rql-language-server>`_ you can `buy me a coffee <https://paypal.me/hansec>`_ to say thanks.
 
 Editor examples (Atom):
 -----------------------
 
 Document symbols (``textDocument/documentSymbol``):
 
-.. image:: https://raw.githubusercontent.com/hansec/fortran-language-server/master/images/fortls_outline.png
+.. image:: https://raw.githubusercontent.com/hansec/rql-language-server/master/images/rqlls_outline.png
 
 Auto-complete (``textDocument/completion``):
 
-.. image:: https://raw.githubusercontent.com/hansec/fortran-language-server/master/images/fortls_autocomplete.gif
+.. image:: https://raw.githubusercontent.com/hansec/rql-language-server/master/images/rqlls_autocomplete.gif
 
 Signature help (``textDocument/signatureHelp``):
 
-.. image:: https://raw.githubusercontent.com/hansec/fortran-language-server/master/images/fortls_sigHelp.gif
+.. image:: https://raw.githubusercontent.com/hansec/rql-language-server/master/images/rqlls_sigHelp.gif
 
 Goto definition (``textDocument/definition``):
 
-.. image:: https://raw.githubusercontent.com/hansec/fortran-language-server/master/images/fortls_gotodef.gif
+.. image:: https://raw.githubusercontent.com/hansec/rql-language-server/master/images/rqlls_gotodef.gif
 
 Hover (``textDocument/hover``):
 
-.. image:: https://raw.githubusercontent.com/hansec/fortran-language-server/master/images/fortls_hover.gif
+.. image:: https://raw.githubusercontent.com/hansec/rql-language-server/master/images/rqlls_hover.gif
 
 Find references (``textDocument/references``):
 
-.. image:: https://raw.githubusercontent.com/hansec/fortran-language-server/master/images/fortls_refs.png
+.. image:: https://raw.githubusercontent.com/hansec/rql-language-server/master/images/rqlls_refs.png
 
 Diagnostics:
 
-.. image:: https://raw.githubusercontent.com/hansec/fortran-language-server/master/images/fortls_diag.png
+.. image:: https://raw.githubusercontent.com/hansec/rql-language-server/master/images/rqlls_diag.png

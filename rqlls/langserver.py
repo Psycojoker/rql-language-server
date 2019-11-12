@@ -3,14 +3,14 @@ import os
 import traceback
 import re
 # Local modules
-from fortls.jsonrpc import path_to_uri, path_from_uri
-from fortls.parse_fortran import fortran_file, fortran_ast, process_file, \
+from rqlls.jsonrpc import path_to_uri, path_from_uri
+from rqlls.parse_rql import rql_file, rql_ast, process_file, \
     get_paren_level, expand_name, get_line_context
-from fortls.objects import find_in_scope, find_in_workspace, get_use_tree, \
+from rqlls.objects import find_in_scope, find_in_workspace, get_use_tree, \
     get_var_stack, climb_type_tree, set_keyword_ordering, MODULE_TYPE_ID, \
     SUBROUTINE_TYPE_ID, FUNCTION_TYPE_ID, CLASS_TYPE_ID, INTERFACE_TYPE_ID, \
     SELECT_TYPE_ID, VAR_TYPE_ID, METH_TYPE_ID
-from fortls.intrinsics import get_intrinsic_keywords, load_intrinsics, \
+from rqlls.intrinsics import get_intrinsic_keywords, load_intrinsics, \
     set_lowercase_intrinsics
 
 log = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ END_REGEX = re.compile(r'[ ]*(END)( |MODULE|PROGRAM|SUBROUTINE|FUNCTION|TYPE|DO|
 
 def init_file(filepath, pp_defs, pp_suffixes, include_dirs):
     #
-    file_obj = fortran_file(filepath, pp_suffixes)
+    file_obj = rql_file(filepath, pp_suffixes)
     err_str = file_obj.load_from_disk()
     if err_str is not None:
         return None, err_str
@@ -100,9 +100,9 @@ class LangServer:
         # Set object settings
         set_keyword_ordering(self.sort_keywords)
 
-    def post_message(self, message, type=1):
+    def post_message(self, message, kind=1):
         self.conn.send_notification("window/showMessage", {
-            "type": type,
+            "type": kind,
             "message": message
         })
 
@@ -186,7 +186,7 @@ class LangServer:
             params.get("rootUri") or params.get("rootPath") or "")
         self.source_dirs.append(self.root_path)
         # Check for config file
-        config_path = os.path.join(self.root_path, ".fortls")
+        config_path = os.path.join(self.root_path, ".rqlls")
         config_exists = os.path.isfile(config_path)
         if config_exists:
             try:
@@ -207,7 +207,7 @@ class LangServer:
                         else:
                             self.post_messages.append(
                                 [2, r'Source directory "{0}" specified in '
-                                 r'".fortls" settings file does not exist'.format(dir_path)]
+                                 r'".rqlls" settings file does not exist'.format(dir_path)]
                             )
                     for ext_source_dir in ext_source_dirs:
                         if os.path.isdir(ext_source_dir):
@@ -215,7 +215,7 @@ class LangServer:
                         else:
                             self.post_messages.append(
                                 [2, r'External source directory "{0}" specified in '
-                                 r'".fortls" settings file does not exist'.format(ext_source_dir)]
+                                 r'".rqlls" settings file does not exist'.format(ext_source_dir)]
                             )
                     self.excl_suffixes = config_dict.get("excl_suffixes", [])
                     self.lowercase_intrinsics = config_dict.get("lowercase_intrinsics", self.lowercase_intrinsics)
@@ -229,42 +229,55 @@ class LangServer:
                     if isinstance(self.pp_defs, list):
                         self.pp_defs = {key: "" for key in self.pp_defs}
             except:
-                self.post_messages.append([1, 'Error while parsing ".fortls" settings file'])
+                self.post_messages.append([1, 'Error while parsing ".rqlls" settings file'])
+
             # Make relative include paths absolute
             for (i, include_dir) in enumerate(self.include_dirs):
                 if not os.path.isabs(include_dir):
                     self.include_dirs[i] = os.path.abspath(os.path.join(self.root_path, include_dir))
+
         # Setup logging
         if self.debug_log and (self.root_path != ""):
-            logging.basicConfig(filename=os.path.join(self.root_path, "fortls_debug.log"),
+            logging.basicConfig(filename=os.path.join(self.root_path, "rqlls_debug.log"),
                                 level=logging.DEBUG, filemode='w')
             log.debug("REQUEST %s %s", request.get("id"), request.get("method"))
             self.post_messages.append([3, "FORTLS debugging enabled"])
+
         # Load intrinsics
         set_keyword_ordering(True)  # Always sort intrinsics
+
         if self.lowercase_intrinsics:
             set_lowercase_intrinsics()
+
         self.statements, self.keywords, self.intrinsic_funs, self.intrinsic_mods = load_intrinsics()
+
         for module in self.intrinsic_mods:
             self.obj_tree[module.FQSN] = [module, None]
+
         # Set object settings
         set_keyword_ordering(self.sort_keywords)
+
         # Recursively add sub-directories
         if len(self.source_dirs) == 1:
             self.source_dirs = []
+
             for dirName, subdirList, fileList in os.walk(self.root_path):
                 if self.excl_paths.count(dirName) > 0:
                     while(len(subdirList) > 0):
                         del subdirList[0]
                     continue
+
                 contains_source = False
+
                 for filename in fileList:
                     _, ext = os.path.splitext(os.path.basename(filename))
                     if FORTRAN_EXT_REGEX.match(ext):
                         contains_source = True
                         break
+
                 if contains_source:
                     self.source_dirs.append(dirName)
+
         # Initialize workspace
         self.workspace_init()
         #
@@ -282,34 +295,38 @@ class LangServer:
             "workspaceSymbolProvider": True,
             "textDocumentSync": self.sync_type
         }
+
         if self.use_signature_help:
             server_capabilities["signatureHelpProvider"] = {
                 "triggerCharacters": ["(", ","]
             }
+
         if self.enable_code_actions:
             server_capabilities["codeActionProvider"] = True
+
         if self.notify_init:
             self.post_messages.append([3, "FORTLS initialization complete"])
+
         return {"capabilities": server_capabilities}
         #     "workspaceSymbolProvider": True,
         #     "streaming": False,
         # }
 
     def serve_workspace_symbol(self, request):
-        def map_types(type):
-            if type == 1:
+        def map_types(kind):
+            if kind == 1:
                 return 2
-            elif type == 2:
+            elif kind == 2:
                 return 6
-            elif type == 3:
+            elif kind == 3:
                 return 12
-            elif type == 4:
+            elif kind == 4:
                 return 5
-            elif type == 5:
+            elif kind == 5:
                 return 11
-            elif type == 6:
+            elif kind == 6:
                 return 13
-            elif type == 7:
+            elif kind == 7:
                 return 6
             else:
                 return 1
@@ -322,8 +339,8 @@ class LangServer:
                 "location": {
                     "uri": path_to_uri(candidate.file_ast.path),
                     "range": {
-                        "start": {"line": candidate.sline-1, "character": 0},
-                        "end": {"line": candidate.eline-1, "character": 0}
+                        "start": {"line": candidate.sline - 1, "character": 0},
+                        "end": {"line": candidate.eline - 1, "character": 0}
                     }
                 }
             }
@@ -335,21 +352,21 @@ class LangServer:
         return sorted(matching_symbols, key=lambda k: k['name'])
 
     def serve_document_symbols(self, request):
-        def map_types(type, in_class=False):
-            if type == 1:
+        def map_types(kind, in_class=False):
+            if kind == 1:
                 return 2
-            elif (type == 2) or (type == 3):
+            elif (kind == 2) or (kind == 3):
                 if in_class:
                     return 6
                 else:
                     return 12
-            elif type == 4:
+            elif kind == 4:
                 return 5
-            elif type == 5:
+            elif kind == 5:
                 return 11
-            elif type == 6:
+            elif kind == 6:
                 return 13
-            elif type == 7:
+            elif kind == 7:
                 return 6
             else:
                 return 1
@@ -358,14 +375,19 @@ class LangServer:
         uri = params["textDocument"]["uri"]
         path = path_from_uri(uri)
         file_obj = self.workspace.get(path)
+
         if file_obj is None:
             return []
+
         # Add scopes to outline view
         test_output = []
+
         for scope in file_obj.ast.get_scopes():
             if (scope.name[0] == "#") or (scope.get_type() == SELECT_TYPE_ID):
                 continue
+
             scope_tree = scope.FQSN.split("::")
+
             if len(scope_tree) > 2:
                 if scope_tree[1].startswith("#gen_int"):
                     scope_type = 11
@@ -373,11 +395,14 @@ class LangServer:
                     continue
             else:
                 scope_type = map_types(scope.get_type())
+
             tmp_out = {}
             tmp_out["name"] = scope.name
             tmp_out["kind"] = scope_type
-            sline = scope.sline-1
-            eline = scope.eline-1
+
+            sline = scope.sline - 1
+            eline = scope.eline - 1
+
             tmp_out["location"] = {
                 "uri": uri,
                 "range": {
@@ -385,6 +410,7 @@ class LangServer:
                     "end": {"line": eline, "character": 0}
                 }
             }
+
             # Set containing scope
             if scope.FQSN.find('::') > 0:
                 tmp_list = scope.FQSN.split("::")
@@ -399,8 +425,8 @@ class LangServer:
                     tmp_out["location"] = {
                         "uri": uri,
                         "range": {
-                            "start": {"line": child.sline-1, "character": 0},
-                            "end": {"line": child.sline-1, "character": 0}
+                            "start": {"line": child.sline - 1, "character": 0},
+                            "end": {"line": child.sline - 1, "character": 0}
                         }
                     }
                     tmp_out["containerName"] = scope.name
@@ -552,7 +578,7 @@ class LangServer:
             var_prefix = ''
         # Suggestions for user-defined type members
         if is_member:
-            curr_scope = file_obj.ast.get_inner_scope(ac_line+1)
+            curr_scope = file_obj.ast.get_inner_scope(ac_line + 1)
             type_scope = climb_type_tree(var_stack, curr_scope, self.obj_tree)
             # Set enclosing type as scope
             if type_scope is None:
@@ -561,7 +587,7 @@ class LangServer:
                 include_globals = False
                 scope_list = [type_scope]
         else:
-            scope_list = file_obj.ast.get_scopes(ac_line+1)
+            scope_list = file_obj.ast.get_scopes(ac_line + 1)
         # Setup based on context
         req_callable = False
         abstract_only = False
@@ -618,7 +644,7 @@ class LangServer:
             type_mask[VAR_TYPE_ID] = False
             type_mask[SUBROUTINE_TYPE_ID] = False
             type_mask[FUNCTION_TYPE_ID] = False
-            curr_scope = [file_obj.ast.get_inner_scope(ac_line+1)]
+            curr_scope = [file_obj.ast.get_inner_scope(ac_line + 1)]
         elif line_context == 'int_only':
             # Interfaces only (procedure definitions)
             abstract_only = True
@@ -697,7 +723,7 @@ class LangServer:
         # print(var_stack, def_name)
         if def_name == '':
             return None
-        curr_scope = def_file.ast.get_inner_scope(def_line+1)
+        curr_scope = def_file.ast.get_inner_scope(def_line + 1)
         # Traverse type tree if necessary
         if is_member:
             type_scope = climb_type_tree(var_stack, curr_scope, self.obj_tree)
@@ -734,7 +760,7 @@ class LangServer:
             if sections[0][0] <= 1:
                 return None, None, None
             arg_string = line[sections[0][0]:sections[-1][1]]
-            sub_string, sections = get_paren_level(line[:sections[0][0]-1])
+            sub_string, sections = get_paren_level(line[:sections[0][0] - 1])
             return sub_string.strip(), arg_string.split(','), sections[-1][0]
 
         def check_optional(arg, params):
@@ -772,7 +798,7 @@ class LangServer:
         except:
             return None
         #
-        curr_scope = file_obj.ast.get_inner_scope(sig_line+1)
+        curr_scope = file_obj.ast.get_inner_scope(sig_line + 1)
         # Traverse type tree if necessary
         if is_member:
             type_scope = climb_type_tree(var_stack, curr_scope, self.obj_tree)
@@ -811,7 +837,7 @@ class LangServer:
             return None
         # Find current parameter by index or by
         # looking at last arg with optional name
-        param_num = len(arg_strings)-1
+        param_num = len(arg_strings) - 1
         opt_num = check_optional(arg_strings[-1], params)
         if opt_num is None:
             if len(arg_strings) > 1:
@@ -855,7 +881,7 @@ class LangServer:
                 if (line == '') or (line[0] == '#'):
                     continue
                 for match in NAME_REGEX.finditer(line):
-                    var_def = self.get_definition(file_obj, i, match.start(1)+1)
+                    var_def = self.get_definition(file_obj, i, match.start(1) + 1)
                     if var_def is not None:
                         ref_match = False
                         if (def_fqsn == var_def.FQSN) or (var_def.FQSN in override_cache):
@@ -867,7 +893,7 @@ class LangServer:
                                         ref_match = True
                                         override_cache.append(var_def.FQSN)
                                         break
-                            if (var_def.sline-1 == i) and (var_def.file_ast.path == filename) \
+                            if (var_def.sline - 1 == i) and (var_def.file_ast.path == filename) \
                                and (line.count("=>") == 0):
                                 try:
                                     if var_def.link_obj is def_obj:
@@ -936,7 +962,7 @@ class LangServer:
         if var_obj.file_ast.file is not None:
             var_file = var_obj.file_ast.file
             sline, schar, echar = \
-                var_file.find_word_in_code_line(var_obj.sline-1, var_obj.name)
+                var_file.find_word_in_code_line(var_obj.sline - 1, var_obj.name)
             if schar < 0:
                 schar = echar = 0
             return {
@@ -952,7 +978,7 @@ class LangServer:
         def create_hover(string, highlight):
             if highlight:
                 return {
-                    "language": "fortran90",
+                    "language": "rql90",
                     "value": string
                 }
             else:
@@ -1027,7 +1053,7 @@ class LangServer:
             if (impl_obj is not None) and (impl_obj.file_ast.file is not None):
                 impl_file = impl_obj.file_ast.file
                 sline, schar, echar = \
-                    impl_file.find_word_in_code_line(impl_obj.sline-1, impl_obj.name)
+                    impl_file.find_word_in_code_line(impl_obj.sline - 1, impl_obj.name)
                 if schar < 0:
                     schar = echar = 0
                 return {
@@ -1085,7 +1111,7 @@ class LangServer:
         bind_obj = None
         if def_obj.get_type(no_link=True) == METH_TYPE_ID:
             _, curr_line, post_lines = def_obj.file_ast.file.get_code_line(
-                def_obj.sline-1, backward=False, strip_comment=True
+                def_obj.sline - 1, backward=False, strip_comment=True
             )
             if curr_line is not None:
                 full_line = curr_line + ''.join(post_lines)
@@ -1099,7 +1125,7 @@ class LangServer:
         if bind_obj is not None:
             def_uri = path_to_uri(bind_obj.file_ast.file.path)
             for change in changes[def_uri]:
-                if change['range']['start']['line'] == bind_obj.sline-1:
+                if change['range']['start']['line'] == bind_obj.sline - 1:
                     change["newText"] = bind_change
         return {"changes": changes}
 
@@ -1241,11 +1267,11 @@ class LangServer:
             file_obj = self.workspace.get(filepath)
             if read_file:
                 if file_obj is None:
-                    file_obj = fortran_file(filepath, self.pp_suffixes)
+                    file_obj = rql_file(filepath, self.pp_suffixes)
                     # Create empty file if not yet saved to disk
                     if not os.path.isfile(filepath):
                         if allow_empty:
-                            file_obj.ast = fortran_ast(file_obj)
+                            file_obj.ast = rql_ast(file_obj)
                             self.workspace[filepath] = file_obj
                             return False, None
                         else:

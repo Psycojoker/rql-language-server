@@ -4,11 +4,11 @@ import os
 import re
 import hashlib
 from collections import namedtuple
-from fortls.objects import get_paren_substring, map_keywords, get_paren_level, \
-    fortran_ast, fortran_module, fortran_program, fortran_submodule, \
-    fortran_subroutine, fortran_function, fortran_block, fortran_select, \
-    fortran_type, fortran_enum, fortran_int, fortran_var, fortran_meth, \
-    fortran_associate, fortran_do, fortran_where, fortran_if, \
+from rqlls.objects import get_paren_substring, map_keywords, get_paren_level, \
+    rql_ast, rql_module, rql_program, rql_submodule, \
+    rql_subroutine, rql_function, rql_block, rql_select, \
+    rql_type, rql_enum, rql_int, rql_var, rql_meth, \
+    rql_associate, rql_do, rql_where, rql_if, \
     INTERFACE_TYPE_ID, SELECT_TYPE_ID
 PY3K = sys.version_info >= (3, 0)
 if not PY3K:
@@ -713,7 +713,7 @@ def_tests = [
 ]
 
 
-class fortran_file:
+class rql_file:
     def __init__(self, path=None, pp_suffixes=None):
         self.path = path
         self.contents_split = []
@@ -733,7 +733,7 @@ class fortran_file:
 
     def copy(self):
         """Copy content to new file object (does not copy objects)"""
-        copy_obj = fortran_file(self.path)
+        copy_obj = rql_file(self.path)
         copy_obj.preproc = self.preproc
         copy_obj.fixed = self.fixed
         copy_obj.set_contents(self.contents_split)
@@ -1213,7 +1213,7 @@ def preprocess_file(contents_split, file_path=None, pp_defs={}, include_dirs=[],
                     break
             if include_path is not None:
                 try:
-                    include_file = fortran_file(include_path)
+                    include_file = rql_file(include_path)
                     err_string = include_file.load_from_disk()
                     if err_string is None:
                         if debug:
@@ -1251,7 +1251,7 @@ def preprocess_file(contents_split, file_path=None, pp_defs={}, include_dirs=[],
 
 def process_file(file_obj, close_open_scopes, debug=False, pp_defs={}, include_dirs=[]):
     """Build file AST by parsing file"""
-    file_ast = fortran_ast(file_obj)
+    file_ast = rql_ast(file_obj)
     if file_obj.preproc:
         if debug:
             print("=== PreProc Pass ===\n")
@@ -1520,44 +1520,44 @@ def process_file(file_obj, close_open_scopes, debug=False, pp_defs={}, include_d
                     name_stripped = name_raw.strip()
                     keywords, keyword_info = map_keywords(key_tmp)
                     if procedure_def:
-                        new_var = fortran_meth(file_ast, line_number, name_stripped, desc_string,
+                        new_var = rql_meth(file_ast, line_number, name_stripped, desc_string,
                                                keywords, keyword_info=keyword_info, link_obj=link_name)
                     else:
-                        new_var = fortran_var(file_ast, line_number, name_stripped, desc_string,
+                        new_var = rql_var(file_ast, line_number, name_stripped, desc_string,
                                               keywords, keyword_info=keyword_info, link_obj=link_name)
                     file_ast.add_variable(new_var)
                 if(debug):
                     print('{1} !!! VARIABLE statement({0})'.format(line_number, line.strip()))
             elif obj_type == 'mod':
-                new_mod = fortran_module(file_ast, line_number, obj_info)
+                new_mod = rql_module(file_ast, line_number, obj_info)
                 file_ast.add_scope(new_mod, END_MOD_WORD)
                 if(debug):
                     print('{1} !!! MODULE statement({0})'.format(line_number, line.strip()))
             elif obj_type == 'smod':
-                new_smod = fortran_submodule(file_ast, line_number, obj_info.name, ancestor_name=obj_info.parent)
+                new_smod = rql_submodule(file_ast, line_number, obj_info.name, ancestor_name=obj_info.parent)
                 file_ast.add_scope(new_smod, END_SMOD_WORD)
                 if(debug):
                     print('{1} !!! SUBMODULE statement({0})'.format(line_number, line.strip()))
             elif obj_type == 'prog':
-                new_prog = fortran_program(file_ast, line_number, obj_info)
+                new_prog = rql_program(file_ast, line_number, obj_info)
                 file_ast.add_scope(new_prog, END_PROG_WORD)
                 if(debug):
                     print('{1} !!! PROGRAM statement({0})'.format(line_number, line.strip()))
             elif obj_type == 'sub':
                 keywords, _ = map_keywords(obj_info.keywords)
-                new_sub = fortran_subroutine(file_ast, line_number, obj_info.name, args=obj_info.args,
+                new_sub = rql_subroutine(file_ast, line_number, obj_info.name, args=obj_info.args,
                                              mod_flag=obj_info.mod_flag, keywords=keywords)
                 file_ast.add_scope(new_sub, END_SUB_WORD)
                 if(debug):
                     print('{1} !!! SUBROUTINE statement({0})'.format(line_number, line.strip()))
             elif obj_type == 'fun':
                 keywords, _ = map_keywords(obj_info.keywords)
-                new_fun = fortran_function(file_ast, line_number, obj_info.name, args=obj_info.args,
+                new_fun = rql_function(file_ast, line_number, obj_info.name, args=obj_info.args,
                                            mod_flag=obj_info.mod_flag, keywords=keywords,
                                            return_type=obj_info.return_type, result_var=obj_info.return_var)
                 file_ast.add_scope(new_fun, END_FUN_WORD)
                 if obj_info.return_type is not None:
-                    new_obj = fortran_var(file_ast, line_number, obj_info.name,
+                    new_obj = rql_var(file_ast, line_number, obj_info.name,
                                           obj_info.return_type[0], obj_info.return_type[1])
                     file_ast.add_variable(new_obj)
                 if(debug):
@@ -1567,7 +1567,7 @@ def process_file(file_obj, close_open_scopes, debug=False, pp_defs={}, include_d
                 if name is None:
                     block_counter += 1
                     name = '#BLOCK{0}'.format(block_counter)
-                new_block = fortran_block(file_ast, line_number, name)
+                new_block = rql_block(file_ast, line_number, name)
                 file_ast.add_scope(new_block, END_BLOCK_WORD, req_container=True)
                 if(debug):
                     print('{1} !!! BLOCK statement({0})'.format(line_number, line.strip()))
@@ -1576,7 +1576,7 @@ def process_file(file_obj, close_open_scopes, debug=False, pp_defs={}, include_d
                 name = '#DO{0}'.format(do_counter)
                 if obj_info != '':
                     block_id_stack.append(obj_info)
-                new_do = fortran_do(file_ast, line_number, name)
+                new_do = rql_do(file_ast, line_number, name)
                 file_ast.add_scope(new_do, END_DO_WORD, req_container=True)
                 if(debug):
                     print('{1} !!! DO statement({0})'.format(line_number, line.strip()))
@@ -1585,14 +1585,14 @@ def process_file(file_obj, close_open_scopes, debug=False, pp_defs={}, include_d
                 if not obj_info:
                     do_counter += 1
                     name = '#WHERE{0}'.format(do_counter)
-                    new_do = fortran_where(file_ast, line_number, name)
+                    new_do = rql_where(file_ast, line_number, name)
                     file_ast.add_scope(new_do, END_WHERE_WORD, req_container=True)
                 if(debug):
                     print('{1} !!! WHERE statement({0})'.format(line_number, line.strip()))
             elif obj_type == 'assoc':
                 block_counter += 1
                 name = '#ASSOC{0}'.format(block_counter)
-                new_assoc = fortran_associate(file_ast, line_number, name)
+                new_assoc = rql_associate(file_ast, line_number, name)
                 file_ast.add_scope(new_assoc, END_ASSOCIATE_WORD, req_container=True)
                 for bound_var in obj_info:
                     binding_split = bound_var.split('=>')
@@ -1607,14 +1607,14 @@ def process_file(file_obj, close_open_scopes, debug=False, pp_defs={}, include_d
             elif obj_type == 'if':
                 if_counter += 1
                 name = '#IF{0}'.format(if_counter)
-                new_if = fortran_if(file_ast, line_number, name)
+                new_if = rql_if(file_ast, line_number, name)
                 file_ast.add_scope(new_if, END_IF_WORD, req_container=True)
                 if(debug):
                     print('{1} !!! IF statement({0})'.format(line_number, line.strip()))
             elif obj_type == 'select':
                 select_counter += 1
                 name = '#SELECT{0}'.format(select_counter)
-                new_select = fortran_select(file_ast, line_number, name, obj_info)
+                new_select = rql_select(file_ast, line_number, name, obj_info)
                 file_ast.add_scope(new_select, END_SELECT_WORD, req_container=True)
                 new_var = new_select.create_binding_variable(
                     file_ast, line_number, '{0}({1})'.format(obj_info.desc, obj_info.binding), obj_info.type
@@ -1625,7 +1625,7 @@ def process_file(file_obj, close_open_scopes, debug=False, pp_defs={}, include_d
                     print('{1} !!! SELECT statement({0})'.format(line_number, line.strip()))
             elif obj_type == 'typ':
                 keywords, _ = map_keywords(obj_info.keywords)
-                new_type = fortran_type(file_ast, line_number, obj_info.name, keywords)
+                new_type = rql_type(file_ast, line_number, obj_info.name, keywords)
                 if obj_info.parent is not None:
                     new_type.set_inherit(obj_info.parent)
                 file_ast.add_scope(new_type, END_TYPED_WORD, req_container=True)
@@ -1634,7 +1634,7 @@ def process_file(file_obj, close_open_scopes, debug=False, pp_defs={}, include_d
             elif obj_type == 'enum':
                 block_counter += 1
                 name = '#ENUM{0}'.format(block_counter)
-                new_enum = fortran_enum(file_ast, line_number, name)
+                new_enum = rql_enum(file_ast, line_number, name)
                 file_ast.add_scope(new_enum, END_ENUMD_WORD, req_container=True)
                 if(debug):
                     print('{1} !!! ENUM statement({0})'.format(line_number, line.strip()))
@@ -1643,12 +1643,12 @@ def process_file(file_obj, close_open_scopes, debug=False, pp_defs={}, include_d
                 if name is None:
                     int_counter += 1
                     name = '#GEN_INT{0}'.format(int_counter)
-                new_int = fortran_int(file_ast, line_number, name, abstract=obj_info.abstract)
+                new_int = rql_int(file_ast, line_number, name, abstract=obj_info.abstract)
                 file_ast.add_scope(new_int, END_INT_WORD, req_container=True)
                 if(debug):
                     print('{1} !!! INTERFACE statement({0})'.format(line_number, line.strip()))
             elif obj_type == 'gen':
-                new_int = fortran_int(file_ast, line_number, obj_info.bound_name, abstract=False)
+                new_int = rql_int(file_ast, line_number, obj_info.bound_name, abstract=False)
                 file_ast.add_scope(new_int, END_INT_WORD, req_container=True)
                 for pro_link in obj_info.pro_links:
                     file_ast.add_int_member(pro_link)

@@ -1,8 +1,8 @@
 import os
 import json
-from fortls.objects import fortran_ast, fortran_module, fortran_subroutine, \
-    fortran_function, fortran_type, fortran_var, fortran_obj, map_keywords
-none_ast = fortran_ast()
+from rqlls.objects import rql_ast, rql_module, rql_subroutine, \
+    rql_function, rql_type, rql_var, rql_obj, map_keywords
+none_ast = rql_ast()
 lowercase_intrinsics = False
 
 
@@ -11,7 +11,7 @@ def set_lowercase_intrinsics():
     lowercase_intrinsics = True
 
 
-class fortran_intrinsic_obj(fortran_obj):
+class rql_intrinsic_obj(rql_obj):
     def __init__(self, name, type, doc_str=None, args="", parent=None):
         self.name = name
         self.type = type
@@ -88,7 +88,7 @@ def load_intrinsics():
         if lowercase_intrinsics:
             name = name.lower()
             args = args.lower()
-        return fortran_intrinsic_obj(name, type, doc_str=doc_str, args=args)
+        return rql_intrinsic_obj(name, type, doc_str=doc_str, args=args)
 
     def create_object(json_obj, enc_obj=None):
         if enc_obj is not None:
@@ -106,19 +106,19 @@ def load_intrinsics():
             name = name.lower()
             args = args.lower()
         if json_obj["type"] == 0:
-            mod_tmp = fortran_module(none_ast, 0, name)
+            mod_tmp = rql_module(none_ast, 0, name)
             if "use" in json_obj:
                 mod_tmp.add_use(json_obj["use"], 0)
             return mod_tmp
         elif json_obj["type"] == 1:
-            return fortran_subroutine(none_ast, 0, name, args=args)
+            return rql_subroutine(none_ast, 0, name, args=args)
         elif json_obj["type"] == 2:
-            return fortran_function(none_ast, 0, name,
+            return rql_function(none_ast, 0, name,
                                     args=args, return_type=[json_obj["return"], keywords, keyword_info])
         elif json_obj["type"] == 3:
-            return fortran_var(none_ast, 0, name, json_obj["desc"], keywords, keyword_info)
+            return rql_var(none_ast, 0, name, json_obj["desc"], keywords, keyword_info)
         elif json_obj["type"] == 4:
-            return fortran_type(none_ast, 0, name, keywords)
+            return rql_type(none_ast, 0, name, keywords)
         else:
             raise ValueError
 
@@ -128,7 +128,7 @@ def load_intrinsics():
             fort_obj.add_child(child_obj)
             add_children(child, child_obj)
     # Fortran statments taken from Intel Fortran documentation
-    # (https://software.intel.com/en-us/fortran-compiler-18.0-developer-guide)
+    # (https://software.intel.com/en-us/rql-compiler-18.0-developer-guide)
     json_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "statements.json")
     statements = {
         'var_def': [],
@@ -140,7 +140,7 @@ def load_intrinsics():
             for name, json_obj in sorted(intrin_file[key].items()):
                 statements[key].append(create_int_object(name, json_obj, 15))
     # Fortran keywords taken from Intel Fortran documentation
-    # (https://software.intel.com/en-us/fortran-compiler-18.0-developer-guide)
+    # (https://software.intel.com/en-us/rql-compiler-18.0-developer-guide)
     json_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "keywords.json")
     keywords = {
         'var_def': [],
@@ -154,16 +154,16 @@ def load_intrinsics():
         for key in keywords:
             for name, json_obj in sorted(intrin_file[key].items()):
                 keywords[key].append(create_int_object(name, json_obj, 14))
-    # Definitions taken from gfortran documentation
-    # (https://gcc.gnu.org/onlinedocs/gfortran/Intrinsic-Procedures.html#Intrinsic-Procedures)
+    # Definitions taken from grql documentation
+    # (https://gcc.gnu.org/onlinedocs/grql/Intrinsic-Procedures.html#Intrinsic-Procedures)
     json_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intrinsic_funs.json")
     int_funs = []
     with open(json_file, 'r') as fid:
         intrin_file = json.load(fid)
         for name, json_obj in sorted(intrin_file.items()):
             int_funs.append(create_int_object(name, json_obj, json_obj['type']))
-    # Definitions taken from gfortran documentation
-    # (https://gcc.gnu.org/onlinedocs/gfortran/Intrinsic-Modules.html#Intrinsic-Modules)
+    # Definitions taken from grql documentation
+    # (https://gcc.gnu.org/onlinedocs/grql/Intrinsic-Modules.html#Intrinsic-Modules)
     json_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intrinsic_mods.json")
     int_mods = []
     with open(json_file, 'r') as fid:

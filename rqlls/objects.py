@@ -2,7 +2,7 @@ import copy
 import re
 import os
 from collections import namedtuple
-from fortls.jsonrpc import path_to_uri
+from rqlls.jsonrpc import path_to_uri
 # Global variables
 sort_keywords = True
 # Regexes
@@ -350,7 +350,7 @@ class USE_line:
         self.rename_map = {key.lower(): value.lower() for key, value in rename_map.items()}
 
 
-class fortran_diagnostic:
+class rql_diagnostic:
     def __init__(self, sline, message, severity=1, find_word=None):
         self.sline = sline
         self.message = message
@@ -398,7 +398,7 @@ class fortran_diagnostic:
 
 
 # Fortran object classes
-class fortran_obj:
+class rql_obj:
     def __init__(self):
         self.vis = 0
         self.def_vis = 0
@@ -507,7 +507,7 @@ class fortran_obj:
         return None, known_types
 
 
-class fortran_scope(fortran_obj):
+class rql_scope(rql_obj):
     def __init__(self, file_ast, line_number, name):
         self.base_setup(file_ast, line_number, name)
 
@@ -617,7 +617,7 @@ class fortran_scope(fortran_obj):
                 errors.append(def_error)
             # Detect contains errors
             if (contains_line >= child.sline) and (child.get_type(no_link=True) in after_contains_list):
-                new_diag = fortran_diagnostic(
+                new_diag = rql_diagnostic(
                     line_number, message='Subroutine/Function definition before CONTAINS statement',
                     severity=1
                 )
@@ -628,7 +628,7 @@ class fortran_scope(fortran_obj):
             # Check other variables in current scope
             if child.FQSN in FQSN_dict:
                 if line_number > FQSN_dict[child.FQSN]:
-                    new_diag = fortran_diagnostic(
+                    new_diag = rql_diagnostic(
                         line_number, message='Variable "{0}" declared twice in scope'.format(child.name),
                         severity=1, find_word=child.name
                     )
@@ -644,7 +644,7 @@ class fortran_scope(fortran_obj):
                     # Ignore if function return variable
                     if (self.get_type() == FUNCTION_TYPE_ID) and (parent_var.FQSN == self.FQSN):
                         continue
-                    new_diag = fortran_diagnostic(
+                    new_diag = rql_diagnostic(
                         line_number, message='Variable "{0}" masks variable in parent scope'.format(child.name),
                         severity=2, find_word=child.name
                     )
@@ -660,19 +660,19 @@ class fortran_scope(fortran_obj):
             last_use_line = max(last_use_line, use_stmnt.line_number)
             if use_stmnt.mod_name.startswith('#import'):
                 if (self.parent is None) or (self.parent.get_type() != INTERFACE_TYPE_ID):
-                    new_diag = fortran_diagnostic(
+                    new_diag = rql_diagnostic(
                         use_stmnt.line_number-1, message='IMPORT statement outside of interface', severity=1
                     )
                     errors.append(new_diag)
                 continue
             if use_stmnt.mod_name not in obj_tree:
-                new_diag = fortran_diagnostic(
+                new_diag = rql_diagnostic(
                     use_stmnt.line_number-1, message='Module "{0}" not found in project'.format(use_stmnt.mod_name),
                     severity=3, find_word=use_stmnt.mod_name
                 )
                 errors.append(new_diag)
         if (self.implicit_line is not None) and (last_use_line >= self.implicit_line):
-            new_diag = fortran_diagnostic(
+            new_diag = rql_diagnostic(
                 self.implicit_line-1, message='USE statements after IMPLICIT statement',
                 severity=1, find_word='IMPLICIT'
             )
@@ -704,7 +704,7 @@ class fortran_scope(fortran_obj):
         return self.file_ast.path, edits
 
 
-class fortran_module(fortran_scope):
+class rql_module(rql_scope):
     def get_type(self, no_link=False):
         return MODULE_TYPE_ID
 
@@ -717,12 +717,12 @@ class fortran_module(fortran_scope):
         return True
 
 
-class fortran_program(fortran_module):
+class rql_program(rql_module):
     def get_desc(self):
         return 'PROGRAM'
 
 
-class fortran_submodule(fortran_module):
+class rql_submodule(rql_module):
     def __init__(self, file_ast, line_number, name, ancestor_name=None):
         self.base_setup(file_ast, line_number, name)
         self.ancestor_name = ancestor_name
@@ -773,7 +773,7 @@ class fortran_submodule(fortran_module):
         return True
 
 
-class fortran_subroutine(fortran_scope):
+class rql_subroutine(rql_scope):
     def __init__(self, file_ast, line_number, name, args="", mod_flag=False, keywords=[]):
         self.base_setup(file_ast, line_number, name, keywords=keywords)
         self.args = args.replace(' ', '')
@@ -944,7 +944,7 @@ class fortran_subroutine(fortran_scope):
     def get_diagnostics(self):
         errors = []
         for missing_obj in self.missing_args:
-            new_diag = fortran_diagnostic(
+            new_diag = rql_diagnostic(
                 missing_obj.sline-1,
                 'Variable "{0}" with INTENT keyword not found in argument list'.format(missing_obj.name),
                 severity=1, find_word=missing_obj.name
@@ -957,7 +957,7 @@ class fortran_subroutine(fortran_scope):
         for (i, arg_obj) in enumerate(self.arg_objs):
             if arg_obj is None:
                 arg_name = arg_list[i].strip()
-                new_diag = fortran_diagnostic(
+                new_diag = rql_diagnostic(
                     self.sline-1, 'No matching declaration found for argument "{0}"'.format(arg_name),
                     severity=1, find_word=arg_name
                 )
@@ -965,7 +965,7 @@ class fortran_subroutine(fortran_scope):
         return errors
 
 
-class fortran_function(fortran_subroutine):
+class rql_function(rql_subroutine):
     def __init__(self, file_ast, line_number, name, args="",
                  mod_flag=False, keywords=[], return_type=None, result_var=None):
         self.base_setup(file_ast, line_number, name, keywords=keywords)
@@ -1079,7 +1079,7 @@ class fortran_function(fortran_subroutine):
         return "\n".join(interface_array)
 
 
-class fortran_type(fortran_scope):
+class rql_type(rql_scope):
     def __init__(self, file_ast, line_number, name, keywords):
         self.base_setup(file_ast, line_number, name, keywords=keywords)
         #
@@ -1157,7 +1157,7 @@ class fortran_type(fortran_scope):
         errors = []
         for in_child in self.in_children:
             if (not self.abstract) and (in_child.keywords.count(KEYWORD_ID_DICT['deferred']) > 0):
-                new_diag = fortran_diagnostic(
+                new_diag = rql_diagnostic(
                     self.eline - 1, 'Deferred procedure "{0}" not implemented'.format(in_child.name),
                     severity=1
                 )
@@ -1204,7 +1204,7 @@ class fortran_type(fortran_scope):
                     "newText": "  PROCEDURE :: {0} => {0}\n".format(in_child.name)
                 })
                 edits += interface_edits
-                new_diag = fortran_diagnostic(
+                new_diag = rql_diagnostic(
                     line_number, 'Deferred procedure "{0}" not implemented'.format(in_child.name),
                     severity=1
                 )
@@ -1227,7 +1227,7 @@ class fortran_type(fortran_scope):
         return actions
 
 
-class fortran_block(fortran_scope):
+class rql_block(rql_scope):
     def __init__(self, file_ast, line_number, name):
         self.base_setup(file_ast, line_number, name)
 
@@ -1244,7 +1244,7 @@ class fortran_block(fortran_scope):
         return True
 
 
-class fortran_do(fortran_block):
+class rql_do(rql_block):
     def __init__(self, file_ast, line_number, name):
         self.base_setup(file_ast, line_number, name)
 
@@ -1255,7 +1255,7 @@ class fortran_do(fortran_block):
         return 'DO'
 
 
-class fortran_where(fortran_block):
+class rql_where(rql_block):
     def __init__(self, file_ast, line_number, name):
         self.base_setup(file_ast, line_number, name)
 
@@ -1266,7 +1266,7 @@ class fortran_where(fortran_block):
         return 'WHERE'
 
 
-class fortran_if(fortran_block):
+class rql_if(rql_block):
     def __init__(self, file_ast, line_number, name):
         self.base_setup(file_ast, line_number, name)
 
@@ -1277,7 +1277,7 @@ class fortran_if(fortran_block):
         return 'IF'
 
 
-class fortran_associate(fortran_block):
+class rql_associate(rql_block):
     def __init__(self, file_ast, line_number, name):
         self.base_setup(file_ast, line_number, name)
         self.assoc_links = []
@@ -1289,7 +1289,7 @@ class fortran_associate(fortran_block):
         return 'ASSOCIATE'
 
     def create_binding_variable(self, file_ast, line_number, bound_name, link_var):
-        new_var = fortran_var(file_ast, line_number, bound_name, 'UNKNOWN', [])
+        new_var = rql_var(file_ast, line_number, bound_name, 'UNKNOWN', [])
         self.assoc_links.append([new_var, bound_name, link_var])
         return new_var
 
@@ -1312,7 +1312,7 @@ class fortran_associate(fortran_block):
         return True
 
 
-class fortran_enum(fortran_block):
+class rql_enum(rql_block):
     def __init__(self, file_ast, line_number, name):
         self.base_setup(file_ast, line_number, name)
 
@@ -1323,7 +1323,7 @@ class fortran_enum(fortran_block):
         return 'ENUM'
 
 
-class fortran_select(fortran_block):
+class rql_select(rql_block):
     def __init__(self, file_ast, line_number, name, select_info):
         self.base_setup(file_ast, line_number, name)
         self.select_type = select_info.type
@@ -1370,13 +1370,13 @@ class fortran_select(fortran_block):
             bound_var = None
         # Create variable
         if binding_name is not None:
-            return fortran_var(file_ast, line_number, binding_name, var_desc, [], link_obj=bound_var)
+            return rql_var(file_ast, line_number, binding_name, var_desc, [], link_obj=bound_var)
         elif (binding_name is None) and (bound_var is not None):
-            return fortran_var(file_ast, line_number, bound_var, var_desc, [])
+            return rql_var(file_ast, line_number, bound_var, var_desc, [])
         return None
 
 
-class fortran_int(fortran_scope):
+class rql_int(rql_scope):
     def __init__(self, file_ast, line_number, name, abstract=False):
         self.base_setup(file_ast, line_number, name)
         self.mems = []
@@ -1411,7 +1411,7 @@ class fortran_int(fortran_scope):
         return True
 
 
-class fortran_var(fortran_obj):
+class rql_var(rql_obj):
     def __init__(self, file_ast, line_number, name, var_desc, keywords,
                  keyword_info={}, link_obj=None):
         self.base_setup(file_ast, line_number, name, var_desc, keywords,
@@ -1553,12 +1553,12 @@ class fortran_var(fortran_obj):
             if type_info is not None:
                 if type_info[0] == 1:
                     if interface:
-                        out_diag = fortran_diagnostic(
+                        out_diag = rql_diagnostic(
                             self.sline-1, message='Object "{0}" not imported in interface'.format(desc_obj_name),
                             severity=1, find_word=desc_obj_name
                         )
                     else:
-                        out_diag = fortran_diagnostic(
+                        out_diag = rql_diagnostic(
                             self.sline-1, message='Object "{0}" not found in scope'.format(desc_obj_name),
                             severity=1, find_word=desc_obj_name
                         )
@@ -1569,7 +1569,7 @@ class fortran_var(fortran_obj):
         return None, known_types
 
 
-class fortran_meth(fortran_var):
+class rql_meth(rql_var):
     def __init__(self, file_ast, line_number, name, var_desc, keywords,
                  keyword_info, link_obj=None):
         self.base_setup(file_ast, line_number, name, var_desc, keywords,
@@ -1678,7 +1678,7 @@ class fortran_meth(fortran_var):
         return None, known_types
 
 
-class fortran_ast:
+class rql_ast:
     def __init__(self, file_obj=None):
         self.file = file_obj
         self.path = None
@@ -1709,7 +1709,7 @@ class fortran_ast:
         """Create empty scope to hold non-module contained items"""
         if self.none_scope is not None:
             raise ValueError
-        self.none_scope = fortran_program(self, 1, "main")
+        self.none_scope = rql_program(self, 1, "main")
         self.add_scope(self.none_scope, re.compile(r'[ ]*END[ ]*PROGRAM', re.I), exportable=False)
 
     def get_enc_scope_name(self):
@@ -1932,10 +1932,10 @@ class fortran_ast:
                 message = 'Unexpected end of scope at line {0}'.format(error[0])
             else:
                 message = 'Unexpected end statement: No open scopes'
-            errors.append(fortran_diagnostic(error[1]-1, message=message, severity=1))
+            errors.append(rql_diagnostic(error[1]-1, message=message, severity=1))
         for scope in tmp_list:
             if not scope.check_valid_parent():
-                errors.append(fortran_diagnostic(
+                errors.append(rql_diagnostic(
                     scope.sline-1, message='Invalid parent for "{0}" declaration'.format(scope.get_desc()),
                     severity=1
                 ))
