@@ -13,7 +13,7 @@ from rqlls.objects import find_in_scope, find_in_workspace, get_use_tree, \
 from rqlls.intrinsics import get_intrinsic_keywords, load_intrinsics, \
     set_lowercase_intrinsics
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 # Global regexes
 FORTRAN_EXT_REGEX = re.compile(r'^\.F(77|90|95|03|08|OR|PP)?$', re.I)
 INT_STMNT_REGEX = re.compile(r'^[ ]*[a-z]*$', re.I)
@@ -32,7 +32,7 @@ def init_file(filepath, pp_defs, pp_suffixes, include_dirs):
     try:
         file_ast = process_file(file_obj, True, pp_defs=pp_defs, include_dirs=include_dirs)
     except:
-        log.error("Error while parsing file %s", filepath, exc_info=True)
+        logger.error("Error while parsing file %s", filepath, exc_info=True)
         return None, 'Error during parsing'
     file_obj.ast = file_ast
     return file_obj, None
@@ -115,7 +115,7 @@ class LangServer:
             except EOFError:
                 break
             except Exception as e:
-                log.error("Unexpected error: %s", e, exc_info=True)
+                logger.error("Unexpected error: %s", e, exc_info=True)
                 break
             else:
                 for message in self.post_messages:
@@ -126,7 +126,7 @@ class LangServer:
         def noop(request):
             return None
         # Request handler
-        log.debug("REQUEST %s %s", request.get("id"), request.get("method"))
+        logger.debug("REQUEST %s %s", request.get("id"), request.get("method"))
         handler = {
             "initialize": self.serve_initialize,
             "textDocument/documentSymbol": self.serve_document_symbols,
@@ -157,7 +157,7 @@ class LangServer:
             try:
                 handler(request)
             except:
-                log.warning(
+                logger.warning(
                     "error handling notification %s", request, exc_info=True)
             return
         #
@@ -166,7 +166,7 @@ class LangServer:
         except JSONRPC2Error as e:
             self.conn.write_error(
                 request["id"], code=e.code, message=e.message, data=e.data)
-            log.warning("RPC error handling request %s", request, exc_info=True)
+            logger.warning("RPC error handling request %s", request, exc_info=True)
         except Exception as e:
             self.conn.write_error(
                 request["id"],
@@ -175,7 +175,7 @@ class LangServer:
                 data={
                     "traceback": traceback.format_exc(),
                 })
-            log.warning("error handling request %s", request, exc_info=True)
+            logger.warning("error handling request %s", request, exc_info=True)
         else:
             self.conn.write_response(request["id"], resp)
 
@@ -240,7 +240,7 @@ class LangServer:
         if self.debug_log and (self.root_path != ""):
             logging.basicConfig(filename=os.path.join(self.root_path, "rqlls_debug.log"),
                                 level=logging.DEBUG, filemode='w')
-            log.debug("REQUEST %s %s", request.get("id"), request.get("method"))
+            logger.debug("REQUEST %s %s", request.get("id"), request.get("method"))
             self.post_messages.append([3, "FORTLS debugging enabled"])
 
         # Load intrinsics
@@ -1192,7 +1192,7 @@ class LangServer:
         file_obj = self.workspace.get(path)
         if file_obj is None:
             self.post_message('Change request failed for unknown file "{0}"'.format(path))
-            log.error('Change request failed for unknown file "%s"', path)
+            logger.error('Change request failed for unknown file "%s"', path)
             return
         else:
             # Update file contents with changes
@@ -1207,7 +1207,7 @@ class LangServer:
                         reparse_req = (reparse_req or reparse_flag)
                 except:
                     self.post_message('Change request failed for file "{0}": Could not apply change'.format(path))
-                    log.error('Change request failed for file "%s": Could not apply change', path, exc_info=True)
+                    logger.error('Change request failed for file "%s": Could not apply change', path, exc_info=True)
                     return
         # Parse newly updated file
         if reparse_req:
@@ -1279,13 +1279,13 @@ class LangServer:
                 hash_old = file_obj.hash
                 err_string = file_obj.load_from_disk()
                 if err_string is not None:
-                    log.error(err_string + ": %s", filepath)
+                    logger.error(err_string + ": %s", filepath)
                     return False, err_string  # Error during file read
                 if hash_old == file_obj.hash:
                     return False, None
             ast_new = process_file(file_obj, True, pp_defs=self.pp_defs, include_dirs=self.include_dirs)
         except:
-            log.error("Error while parsing file %s", filepath, exc_info=True)
+            logger.error("Error while parsing file %s", filepath, exc_info=True)
             return False, 'Error during parsing'  # Error during parsing
         # Remove old objects from tree
         ast_old = file_obj.ast
