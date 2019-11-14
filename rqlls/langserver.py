@@ -60,6 +60,20 @@ def get_line_prefix(pre_lines, curr_line, iChar):
     return line_prefix
 
 
+def log(function):
+    def _w(*args, **kwargs):
+        to_return = function(*args, **kwargs)
+
+        with open("/tmp/rqlls", "a") as f:
+            f.write("[%s] called with %s %s ->>> returned %s\n" %
+                    (function.__name__.upper(), args, kwargs, to_return))
+            f.flush()
+
+        return to_return
+
+    return _w
+
+
 class LangServer:
     def __init__(self, conn, debug_log=False, settings={}):
         self.conn = conn
@@ -179,6 +193,7 @@ class LangServer:
         else:
             self.conn.write_response(request["id"], resp)
 
+    @log
     def serve_initialize(self, request):
         # Setup language server
         params = request["params"]
@@ -312,6 +327,7 @@ class LangServer:
         #     "streaming": False,
         # }
 
+    @log
     def serve_workspace_symbol(self, request):
         def map_types(kind):
             if kind == 1:
@@ -351,6 +367,7 @@ class LangServer:
             matching_symbols.append(tmp_out)
         return sorted(matching_symbols, key=lambda k: k['name'])
 
+    @log
     def serve_document_symbols(self, request):
         def map_types(kind, in_class=False):
             if kind == 1:
@@ -433,6 +450,7 @@ class LangServer:
                     test_output.append(tmp_out)
         return test_output
 
+    @log
     def serve_autocomplete(self, request):
         #
         def map_types(type):
@@ -707,6 +725,7 @@ class LangServer:
             item_list.append(build_comp(candidate, name_only=name_only, name_replace=name_replace))
         return item_list
 
+    @log
     def get_definition(self, def_file, def_line, def_char):
         # Get full line (and possible continuations) from file
         pre_lines, curr_line, _ = def_file.get_code_line(def_line, forward=False, strip_comment=True)
@@ -754,6 +773,7 @@ class LangServer:
             return var_obj
         return None
 
+    @log
     def serve_signature(self, request):
         def get_sub_name(line):
             _, sections = get_paren_level(line)
@@ -858,6 +878,7 @@ class LangServer:
         }
         return req_dict
 
+    @log
     def get_all_references(self, def_obj, type_mem, file_obj=None):
         # Search through all files
         def_name = def_obj.name.lower()
@@ -907,6 +928,7 @@ class LangServer:
                 refs[filename] = file_refs
         return refs, ref_objs
 
+    @log
     def serve_references(self, request):
         # Get parameters from request
         params = request["params"]
@@ -944,6 +966,7 @@ class LangServer:
                 })
         return refs
 
+    @log
     def serve_definition(self, request):
         # Get parameters from request
         params = request["params"]
@@ -974,6 +997,7 @@ class LangServer:
             }
         return None
 
+    @log
     def serve_hover(self, request):
         def create_hover(string, highlight):
             if highlight:
@@ -1033,6 +1057,7 @@ class LangServer:
             return {"contents": hover_array}
         return None
 
+    @log
     def serve_implementation(self, request):
         # Get parameters from request
         params = request["params"]
@@ -1065,6 +1090,7 @@ class LangServer:
                 }
         return None
 
+    @log
     def serve_rename(self, request):
         # Get parameters from request
         params = request["params"]
@@ -1129,6 +1155,7 @@ class LangServer:
                     change["newText"] = bind_change
         return {"changes": changes}
 
+    @log
     def serve_codeActions(self, request):
         params = request["params"]
         uri = params["textDocument"]["uri"]
@@ -1155,6 +1182,7 @@ class LangServer:
                 action["diagnostics"] = new_diags
         return action_list
 
+    @log
     def send_diagnostics(self, uri):
         diag_results, diag_exp = self.get_diagnostics(uri)
         if diag_results is not None:
@@ -1171,6 +1199,7 @@ class LangServer:
                     "traceback": traceback.format_exc(),
                 })
 
+    @log
     def get_diagnostics(self, uri):
         filepath = path_from_uri(uri)
         file_obj = self.workspace.get(filepath)
@@ -1184,6 +1213,7 @@ class LangServer:
                 return diags, None
         return None, None
 
+    @log
     def serve_onChange(self, request):
         # Update workspace from file sent by editor
         params = request["params"]
@@ -1224,12 +1254,15 @@ class LangServer:
         elif file_obj.preproc:
             file_obj.preprocess(pp_defs=self.pp_defs)
 
+    @log
     def serve_onOpen(self, request):
         self.serve_onSave(request, did_open=True)
 
+    @log
     def serve_onClose(self, request):
         self.serve_onSave(request, did_close=True)
 
+    @log
     def serve_onSave(self, request, did_open=False, did_close=False):
         # Update workspace from file on disk
         params = request["params"]
@@ -1261,6 +1294,7 @@ class LangServer:
                 file_obj.ast.resolve_links(self.obj_tree, self.link_version)
         self.send_diagnostics(uri)
 
+    @log
     def update_workspace_file(self, filepath, read_file=False, allow_empty=False, update_links=False):
         # Update workspace from file contents and path
         try:
@@ -1305,6 +1339,7 @@ class LangServer:
             ast_new.resolve_links(self.obj_tree, self.link_version)
         return True, None
 
+    @log
     def workspace_init(self):
         # Get filenames
         file_list = []
@@ -1350,12 +1385,14 @@ class LangServer:
         for _, file_obj in self.workspace.items():
             file_obj.ast.resolve_links(self.obj_tree, self.link_version)
 
+    @log
     def serve_exit(self, request):
         # Exit server
         self.workspace = {}
         self.obj_tree = {}
         self.running = False
 
+    @log
     def serve_default(self, request):
         # Default handler (errors!)
         raise JSONRPC2Error(
